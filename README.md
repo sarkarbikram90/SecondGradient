@@ -86,8 +86,7 @@ If accuracy drops at `T`, SecondGradient is watching what happened at `T-n`.
 
 ## Architecture (High-Level)
 
-
-SecondGradient is composed of loosely coupled components designed to observe system dynamics over time.
+> SecondGradient is composed of loosely coupled components designed to observe system dynamics over time.
 
 ```markdown
 Data Feeds
@@ -121,7 +120,7 @@ Outputs
   └── Auto-remediation hooks
 
 ```
-SecondGradient observes how signals evolve over time, focusing on acceleration and instability rather than static thresholds.
+> SecondGradient observes how signals evolve over time, focusing on acceleration and instability rather than static thresholds.
 
 ---
 
