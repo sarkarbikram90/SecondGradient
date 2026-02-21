@@ -86,20 +86,42 @@ If accuracy drops at `T`, SecondGradient is watching what happened at `T-n`.
 
 ## Architecture (High-Level)
 
-┌────────────┐ ┌─────────────┐ ┌────────────────┐
-│ Data Feeds │ ──▶ │ Signal Ops │ ──▶ │ Gradient Engine
-└────────────┘ └─────────────┘ └────────────────┘
-│
-▼
-┌────────────────┐
-│ Risk Scoring 
-└────────────────┘
-│
-┌─────────────────────────┴─────────────────────────┐
-▼ ▼
-┌────────────────┐ ┌────────────────┐
-│ Alerts / UI │ │ Auto Remediate │
-└────────────────┘ └────────────────┘
+```markdown
+SecondGradient is composed of loosely coupled components designed to observe system dynamics over time.
+
+Data Feeds
+  ├── Training data
+  ├── Inference inputs
+  ├── Predictions
+  └── System metrics
+        │
+        ▼
+Signal Ops
+  ├── Windowing & aggregation
+  ├── Baseline tracking
+  └── Segment slicing
+        │
+        ▼
+Gradient Engine
+  ├── Drift detection
+  ├── Acceleration analysis
+  └── Stability scoring
+        │
+        ▼
+Risk Scoring
+  ├── Early-warning signals
+  ├── Degradation probability
+  └── Confidence weighting
+        │
+        ▼
+Outputs
+  ├── Alerts & dashboards
+  ├── Policy-based actions
+  └── Auto-remediation hooks
+
+```markdown
+SecondGradient observes how signals evolve over time, focusing on acceleration and instability rather than static thresholds.
+
 
 
 ---
