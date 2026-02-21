@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  <img src="SecondGradient-logo.png" alt="SecondGradient logo" width="300"/>
+  <img src="SecondGradient-logo.png" alt="SecondGradient logo" width="500"/>
 </p>
 
 ### **Early-warning observability for production ML systems**
@@ -187,4 +187,4 @@ You’re in the right place.
 > Don’t just monitor outcomes.  
 > Monitor the **shape of change**.
 
-That’s the second gradient.
+That’s the SecondGradient.
