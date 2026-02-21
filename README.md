@@ -120,10 +120,8 @@ Outputs
   ├── Policy-based actions
   └── Auto-remediation hooks
 
-
+```
 SecondGradient observes how signals evolve over time, focusing on acceleration and instability rather than static thresholds.
-
-
 
 ---
 
