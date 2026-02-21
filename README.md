@@ -5,7 +5,7 @@
   <img src="SecondGradient-logo.png" alt="SecondGradient logo" width="300"/>
 </p>
 
-**Early-warning observability for production ML systems**
+### **Early-warning observability for production ML systems**
 
 ### Logo Philosophy
 
