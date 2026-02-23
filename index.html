@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecondGradient — Early-Warning Observability for Production ML</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #030507;
+    --dark: #080d12;
+    --panel: #0c1218;
+    --border: #1a2530;
+    --amber: #e8a020;
+    --amber-dim: #a06a10;
+    --green: #2af598;
+    --green-dim: #0d8a4a;
+    --red: #ff4444;
+    --blue: #2090ff;
+    --text: #c8d8e8;
+    --text-dim: #5a7a90;
+    --white: #eef4fa;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* NOISE OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* GRID LINES */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(32,144,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(32,144,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(3,5,7,0.85);
+    backdrop-filter: blur(12px);
+  }
+
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-logo .logo-dot {
+    width: 8px; height: 8px;
+    background: var(--amber);
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,160,32,0.7); }
+    50% { box-shadow: 0 0 0 6px rgba(232,160,32,0); }
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--white); }
+
+  .nav-cta {
+    background: var(--amber);
+    color: #000;
+    border: none;
+    padding: 8px 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .nav-cta:hover { background: #fff; }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 48px 80px;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  /* Radar circle */
+  .radar {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .radar-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(232,160,32,0.06);
+    transform: translate(-50%, -50%);
+    top: 50%; left: 50%;
+  }
+
+  .radar-ring:nth-child(1) { width: 200px; height: 200px; }
+  .radar-ring:nth-child(2) { width: 400px; height: 400px; border-color: rgba(232,160,32,0.05); }
+  .radar-ring:nth-child(3) { width: 650px; height: 650px; border-color: rgba(232,160,32,0.04); }
+  .radar-ring:nth-child(4) { width: 950px; height: 950px; border-color: rgba(232,160,32,0.03); }
+  .radar-ring:nth-child(5) { width: 1300px; height: 1300px; border-color: rgba(232,160,32,0.02); }
+
+  .radar-sweep {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 475px; height: 475px;
+    margin: -237px 0 0 -237px;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(232,160,32,0.0) 270deg,
+      rgba(232,160,32,0.12) 330deg,
+      rgba(232,160,32,0.04) 360deg
+    );
+    animation: sweep 6s linear infinite;
+  }
+
+  @keyframes sweep { to { transform: rotate(360deg); } }
+
+  /* Signal blips */
+  .blip {
+    position: absolute;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    animation: blip-fade 6s ease-in-out infinite;
+  }
+
+  .blip-1 { background: var(--amber); top: 38%; left: 58%; animation-delay: 1.2s; }
+  .blip-2 { background: var(--red); top: 45%; left: 62%; width: 4px; height: 4px; animation-delay: 3.5s; }
+  .blip-3 { background: var(--green); top: 52%; left: 56%; width: 5px; height: 5px; animation-delay: 5.1s; }
+
+  @keyframes blip-fade {
+    0%, 100% { opacity: 0; transform: scale(0.5); box-shadow: none; }
+    30%, 70% { opacity: 1; transform: scale(1); }
+    50% { box-shadow: 0 0 8px currentColor; }
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    max-width: 900px;
+  }
+
+  .hero-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 32px;
+    padding: 6px 14px;
+    border: 1px solid rgba(232,160,32,0.3);
+    background: rgba(232,160,32,0.05);
+    animation: fadeup 0.8s ease both;
+  }
+
+  .hero-label::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--amber);
+    border-radius: 50%;
+    animation: pulse-dot 1.5s ease infinite;
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(48px, 8vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    color: var(--white);
+    margin-bottom: 28px;
+    animation: fadeup 0.8s 0.15s ease both;
+  }
+
+  .hero-title .accent {
+    color: var(--amber);
+    position: relative;
+    display: inline-block;
+  }
+
+  .hero-title .accent::after {
+    content: '';
+    position: absolute;
+    bottom: -4px; left: 0; right: 0;
+    height: 2px;
+    background: var(--amber);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: underline-in 0.6s 0.8s ease forwards;
+  }
+
+  @keyframes underline-in { to { transform: scaleX(1); } }
+
+  .hero-sub {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 620px;
+    margin: 0 auto 48px;
+    animation: fadeup 0.8s 0.3s ease both;
+  }
+
+  .hero-sub strong { color: var(--text); font-weight: 500; }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    animation: fadeup 0.8s 0.45s ease both;
+  }
+
+  .btn-primary {
+    background: var(--amber);
+    color: #000;
+    border: none;
+    padding: 14px 32px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::after {
+    content: '→';
+    margin-left: 8px;
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+
+  .btn-primary:hover { background: #fff; }
+  .btn-primary:hover::after { transform: translateX(4px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 14px 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--white); }
+
+  @keyframes fadeup {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hero bottom bar */
+  .hero-metrics {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    border-top: 1px solid var(--border);
+    animation: fadeup 0.8s 0.6s ease both;
+  }
+
+  .metric-cell {
+    flex: 1;
+    padding: 20px 32px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-cell:last-child { border-right: none; }
+
+  .metric-val {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    color: var(--white);
+    letter-spacing: -0.03em;
+  }
+
+  .metric-val span { color: var(--amber); }
+
+  .metric-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.06em; }
+
+  /* ── SIGNAL STREAM TICKER ── */
+  .ticker-wrap {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+    padding: 12px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ticker-wrap::before,
+  .ticker-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 80px;
+    z-index: 2;
+  }
+
+  .ticker-wrap::before { left: 0; background: linear-gradient(90deg, var(--panel), transparent); }
+  .ticker-wrap::after { right: 0; background: linear-gradient(-90deg, var(--panel), transparent); }
+
+  .ticker-track {
+    display: flex;
+    gap: 0;
+    animation: ticker 30s linear infinite;
+    width: max-content;
+  }
+
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  .ticker-item {
+    padding: 0 28px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .ticker-item .status {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-ok { background: var(--green); box-shadow: 0 0 6px var(--green-dim); }
+  .status-warn { background: var(--amber); box-shadow: 0 0 6px var(--amber-dim); }
+  .status-crit { background: var(--red); box-shadow: 0 0 6px #aa0000; animation: blink 1s ease infinite; }
+
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── SECTIONS ── */
+  section {
+    position: relative;
+    z-index: 1;
+  }
+
+  .section-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 100px 48px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::before {
+    content: '';
+    display: block;
+    width: 24px; height: 1px;
+    background: var(--amber);
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(36px, 5vw, 60px);
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: var(--white);
+    margin-bottom: 20px;
+  }
+
+  .section-desc {
+    font-size: 15px;
+    color: var(--text-dim);
+    max-width: 560px;
+    line-height: 1.8;
+  }
+
+  /* ── WHAT IT MONITORS ── */
+  .monitors-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--border);
+    margin-top: 64px;
+    border: 1px solid var(--border);
+  }
+
+  .monitor-card {
+    background: var(--dark);
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .monitor-card:hover { background: var(--panel); }
+
+  .monitor-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-color), transparent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+
+  .monitor-card:hover::before { transform: scaleX(1); }
+
+  .card-icon {
+    width: 44px; height: 44px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+    font-size: 20px;
+    background: var(--panel);
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--white);
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    transition: all 0.2s;
+  }
+
+  .monitor-card:hover .tag {
+    border-color: rgba(232,160,32,0.3);
+    color: var(--text);
+  }
+
+  /* card accent colors */
+  .card-data { --accent-color: var(--amber); }
+  .card-model { --accent-color: var(--blue); }
+  .card-embed { --accent-color: var(--green); }
+  .card-sys { --accent-color: var(--red); }
+
+  /* ── TIMELINE FEATURE ── */
+  .timeline-section {
+    background: var(--dark);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .timeline-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .timeline-event {
+    display: flex;
+    gap: 20px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  .timeline-event:last-child { border-bottom: none; }
+
+  .t-marker {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 64px;
+  }
+
+  .t-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .t-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--dark);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .t-dot.active {
+    background: var(--amber);
+    border-color: var(--amber);
+    box-shadow: 0 0 12px rgba(232,160,32,0.4);
+  }
+
+  .t-dot.warn { background: var(--red); border-color: var(--red); box-shadow: 0 0 10px rgba(255,68,68,0.4); }
+  .t-dot.ok { background: var(--green); border-color: var(--green); }
+
+  .t-content { flex: 1; padding-top: 2px; }
+
+  .t-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+
+  .t-detail { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+
+  .t-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    margin-top: 6px;
+  }
+
+  .badge-sg { background: rgba(232,160,32,0.15); color: var(--amber); border: 1px solid rgba(232,160,32,0.3); }
+  .badge-std { background: rgba(90,122,144,0.1); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* ── SIGNAL CHART ── */
+  .signal-vis {
+    position: relative;
+    height: 300px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    overflow: hidden;
+    padding: 20px;
+  }
+
+  .sig-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+
+  .sig-canvas { width: 100%; height: 220px; }
+
+  /* ── CAPABILITIES ── */
+  .caps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-top: 64px;
+  }
+
+  .cap-item {
+    background: var(--dark);
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: background 0.2s;
+  }
+
+  .cap-item:hover { background: var(--panel); }
+
+  .cap-num {
+    font-size: 11px;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+  }
+
+  .cap-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--white);
+    letter-spacing: -0.01em;
+  }
+
+  .cap-desc { font-size: 12px; color: var(--text-dim); line-height: 1.7; }
+
+  /* ── DIFFERENTIATOR ── */
+  .diff-section {
+    background: #050a0f;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .diff-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 100px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .diff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 48px;
+  }
+
+  .diff-item {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .diff-item:hover {
+    border-color: rgba(232,160,32,0.3);
+    background: rgba(232,160,32,0.03);
+  }
+
+  .diff-arrow {
+    color: var(--amber);
+    font-size: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .diff-text { font-size: 14px; color: var(--text); line-height: 1.7; }
+  .diff-text strong { color: var(--white); font-weight: 500; }
+
+  /* Code terminal */
+  .terminal {
+    background: #020508;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    overflow: hidden;
+    margin-top: 48px;
+  }
+
+  .term-bar {
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .term-dot:nth-child(1) { background: #ff5f57; }
+  .term-dot:nth-child(2) { background: #febc2e; }
+  .term-dot:nth-child(3) { background: #28c840; }
+
+  .term-title { margin-left: auto; color: var(--text-dim); font-size: 11px; }
+
+  .term-body {
+    padding: 24px;
+    line-height: 2;
+  }
+
+  .term-line { display: block; }
+  .term-prompt { color: var(--amber); }
+  .term-cmd { color: var(--white); }
+  .term-out { color: var(--text-dim); }
+  .term-key { color: var(--blue); }
+  .term-val { color: var(--green); }
+  .term-warn { color: var(--amber); }
+  .term-err { color: var(--red); }
+  .term-cursor {
+    display: inline-block;
+    width: 8px; height: 14px;
+    background: var(--amber);
+    vertical-align: middle;
+    animation: blink 1s ease infinite;
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  .cta-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(232,160,32,0.06) 0%, transparent 70%);
+  }
+
+  .cta-inner {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 120px 48px;
+  }
+
+  .cta-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 24px;
+  }
+
+  .cta-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(40px, 6vw, 72px);
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: var(--white);
+    margin-bottom: 20px;
+  }
+
+  .cta-sub { font-size: 15px; color: var(--text-dim); margin-bottom: 48px; line-height: 1.8; }
+
+  .cta-form {
+    display: flex;
+    gap: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+  }
+
+  .cta-input {
+    flex: 1;
+    background: var(--dark);
+    border: none;
+    outline: none;
+    padding: 14px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--white);
+  }
+
+  .cta-input::placeholder { color: var(--text-dim); }
+
+  .cta-submit {
+    background: var(--amber);
+    border: none;
+    padding: 14px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+
+  .cta-submit:hover { background: #fff; }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--dark);
+    position: relative;
+    z-index: 1;
+  }
+
+  .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    color: var(--white);
+    font-size: 16px;
+    letter-spacing: -0.02em;
+  }
+
+  .footer-text { font-size: 12px; color: var(--text-dim); }
+
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { font-size: 12px; color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--white); }
+
+  /* ── SCROLL ANIMATIONS ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    .hero-metrics { display: none; }
+    .monitors-grid { grid-template-columns: 1fr; }
+    .timeline-layout { grid-template-columns: 1fr; }
+    .caps-grid { grid-template-columns: 1fr; }
+    .diff-inner { grid-template-columns: 1fr; }
+    .section-inner { padding: 64px 24px; }
+    .hero { padding: 120px 24px 80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="logo-dot"></span>
+    SecondGradient
+  </div>
+  <ul class="nav-links">
+    <li><a href="#monitors">What We Monitor</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#capabilities">Capabilities</a></li>
+    <li><a href="#why">Why Different</a></li>
+  </ul>
+  <button class="nav-cta">Request Access</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="radar">
+    <div class="radar-ring"></div>
+    <div class="radar-ring"></div>
+    <div class="radar-ring"></div>
+    <div class="radar-ring"></div>
+    <div class="radar-ring"></div>
+    <div class="radar-sweep"></div>
+    <div class="blip blip-1"></div>
+    <div class="blip blip-2"></div>
+    <div class="blip blip-3"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-label">Early-Warning Observability · ML Systems</div>
+
+    <h1 class="hero-title">
+      See failure<br>
+      before it <span class="accent">happens</span>
+    </h1>
+
+    <p class="hero-sub">
+      In production ML, failures don't arrive instantly. They <strong>accelerate silently</strong> — across data distributions, embeddings, predictions, and downstream metrics. SecondGradient surfaces those early signals.
+    </p>
+
+    <div class="hero-actions">
+      <button class="btn-primary">Request Early Access</button>
+      <button class="btn-ghost">Read the Docs</button>
+    </div>
+  </div>
+
+  <div class="hero-metrics">
+    <div class="metric-cell">
+      <div class="metric-val">T<span>-n</span></div>
+      <div class="metric-label">Detection Before Incident</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-val">4</div>
+      <div class="metric-label">Signal Layers Monitored</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-val">360°</div>
+      <div class="metric-label">Full ML Surface Coverage</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-val"><span>∞</span></div>
+      <div class="metric-label">Real-Time Signal Aggregation</div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track">
+    <!-- duplicated for seamless loop -->
+    <div class="ticker-item"><span class="status status-warn"></span>PSI shift detected · feature:user_age_bucket · Δ=0.14</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Embedding cluster cohesion stable · model:rec-v3</div>
+    <div class="ticker-item"><span class="status status-crit"></span>Confidence entropy rising · segment:EU-mobile · +22% over 4h</div>
+    <div class="ticker-item"><span class="status status-warn"></span>Latency-prediction correlation detected · p95 coupling</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Drift velocity normal · feature:item_embedding · v=0.02</div>
+    <div class="ticker-item"><span class="status status-warn"></span>Segment degradation: region:SEA accuracy −3.1%</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Feedback loop amplitude within bounds · t−6h to t</div>
+    <div class="ticker-item"><span class="status status-crit"></span>Multivariate shift acceleration · feature set: checkout-flow</div>
+    <div class="ticker-item"><span class="status status-warn"></span>PSI shift detected · feature:user_age_bucket · Δ=0.14</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Embedding cluster cohesion stable · model:rec-v3</div>
+    <div class="ticker-item"><span class="status status-crit"></span>Confidence entropy rising · segment:EU-mobile · +22% over 4h</div>
+    <div class="ticker-item"><span class="status status-warn"></span>Latency-prediction correlation detected · p95 coupling</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Drift velocity normal · feature:item_embedding · v=0.02</div>
+    <div class="ticker-item"><span class="status status-warn"></span>Segment degradation: region:SEA accuracy −3.1%</div>
+    <div class="ticker-item"><span class="status status-ok"></span>Feedback loop amplitude within bounds · t−6h to t</div>
+    <div class="ticker-item"><span class="status status-crit"></span>Multivariate shift acceleration · feature set: checkout-flow</div>
+  </div>
+</div>
+
+<!-- MONITORS -->
+<section id="monitors">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">Full Surface Coverage</div>
+      <h2 class="section-title">Every signal layer.<br>Nothing hidden.</h2>
+      <p class="section-desc">SecondGradient operates across the entire ML production surface — from raw data dynamics to infrastructure coupling.</p>
+    </div>
+
+    <div class="monitors-grid reveal">
+      <div class="monitor-card card-data">
+        <div class="card-icon">⊕</div>
+        <div class="card-title">Data & Feature Dynamics</div>
+        <div class="card-desc">Detect distributional shifts before they corrupt model inputs. Univariate, multivariate, and interaction-level drift tracked continuously.</div>
+        <div class="tag-list">
+          <span class="tag">Distribution Shift</span>
+          <span class="tag">Population Stability</span>
+          <span class="tag">Density Changes</span>
+          <span class="tag">Feature Interaction Drift</span>
+        </div>
+      </div>
+
+      <div class="monitor-card card-model">
+        <div class="card-icon">◈</div>
+        <div class="card-title">Model Behavior</div>
+        <div class="card-desc">Monitor how predictions and confidence evolve over time. Catch confidence collapse, entropy growth, and per-segment degradation early.</div>
+        <div class="tag-list">
+          <span class="tag">Prediction Drift</span>
+          <span class="tag">Confidence Collapse</span>
+          <span class="tag">Entropy Growth</span>
+          <span class="tag">Segment Degradation</span>
+        </div>
+      </div>
+
+      <div class="monitor-card card-embed">
+        <div class="card-icon">⬡</div>
+        <div class="card-title">Embeddings & Representations</div>
+        <div class="card-desc">Track how your latent space evolves. Vector space movement, cluster fragmentation, and representation instability — measured continuously.</div>
+        <div class="tag-list">
+          <span class="tag">Vector Space Movement</span>
+          <span class="tag">Cluster Fragmentation</span>
+          <span class="tag">Latent Instability</span>
+        </div>
+      </div>
+
+      <div class="monitor-card card-sys">
+        <div class="card-icon">⟁</div>
+        <div class="card-title">System Signals</div>
+        <div class="card-desc">Correlate infrastructure behavior with model health. Catch feedback loop amplification and cross-service degradation patterns.</div>
+        <div class="tag-list">
+          <span class="tag">Latency Coupling</span>
+          <span class="tag">Throughput</span>
+          <span class="tag">Feedback Loops</span>
+          <span class="tag">Correlated Degradation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section id="how" class="timeline-section">
+  <div class="section-inner">
+    <div class="timeline-layout">
+      <div class="reveal">
+        <div class="section-label">How It Works</div>
+        <h2 class="section-title">If accuracy drops at T,<br>we watched T−n.</h2>
+        <p class="section-desc" style="margin-bottom: 0;">Standard monitoring catches fires. SecondGradient reads the smoke — tracking dynamics and accelerations, not just snapshots.</p>
+
+        <div class="timeline" style="margin-top: 48px;">
+          <div class="timeline-event">
+            <div class="t-marker">
+              <span class="t-time">T−6h</span>
+              <div class="t-dot active"></div>
+            </div>
+            <div class="t-content">
+              <div class="t-label">Drift Acceleration Detected</div>
+              <div class="t-detail">Feature distribution velocity increases. PSI change rate doubles over 2h window. SecondGradient flags early-warning signal.</div>
+              <span class="t-badge badge-sg">⚡ SecondGradient</span>
+            </div>
+          </div>
+          <div class="timeline-event">
+            <div class="t-marker">
+              <span class="t-time">T−3h</span>
+              <div class="t-dot active"></div>
+            </div>
+            <div class="t-content">
+              <div class="t-label">Embedding Cluster Shift</div>
+              <div class="t-detail">Latent space centroid movement in segment: EU-mobile. Cluster cohesion drops 18%. Correlated with upstream feature shift.</div>
+              <span class="t-badge badge-sg">⚡ SecondGradient</span>
+            </div>
+          </div>
+          <div class="timeline-event">
+            <div class="t-marker">
+              <span class="t-time">T−1h</span>
+              <div class="t-dot active"></div>
+            </div>
+            <div class="t-content">
+              <div class="t-label">Confidence Entropy Rising</div>
+              <div class="t-detail">Model confidence entropy increases 22%. Prediction distribution tightening on low-score bucket. Automated remediation hook triggered.</div>
+              <span class="t-badge badge-sg">⚡ SecondGradient</span>
+            </div>
+          </div>
+          <div class="timeline-event">
+            <div class="t-marker">
+              <span class="t-time">T</span>
+              <div class="t-dot warn"></div>
+            </div>
+            <div class="t-content">
+              <div class="t-label">Accuracy Drops — Alert Fires</div>
+              <div class="t-detail">Traditional monitoring detects accuracy regression. But your team already knew — and acted — 6 hours ago.</div>
+              <span class="t-badge badge-std">Standard Monitoring</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal">
+        <div class="signal-vis">
+          <div class="sig-label">// DRIFT ACCELERATION CURVE · model:rec-v3 · segment:EU-mobile</div>
+          <canvas class="sig-canvas" id="sigChart"></canvas>
+        </div>
+
+        <div class="terminal" style="margin-top: 1px;">
+          <div class="term-bar">
+            <div class="term-dot"></div>
+            <div class="term-dot"></div>
+            <div class="term-dot"></div>
+            <span class="term-title">secondgradient.monitor</span>
+          </div>
+          <div class="term-body">
+            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cmd">sg monitor --model rec-v3 --segment EU-mobile</span></span>
+            <span class="term-line"><span class="term-out">Connecting to signal stream...</span></span>
+            <span class="term-line">&nbsp;</span>
+            <span class="term-line"><span class="term-key">drift_velocity  </span><span class="term-val">0.034</span> <span class="term-warn">↑ accelerating</span></span>
+            <span class="term-line"><span class="term-key">psi_change_rate </span><span class="term-val">0.14/h</span> <span class="term-warn">⚠ 2× baseline</span></span>
+            <span class="term-line"><span class="term-key">cluster_cohesion</span><span class="term-val">0.61</span> <span class="term-err">↓ -18% in 3h</span></span>
+            <span class="term-line"><span class="term-key">conf_entropy    </span><span class="term-val">1.42</span> <span class="term-err">↑ +22% alert</span></span>
+            <span class="term-line">&nbsp;</span>
+            <span class="term-line"><span class="term-warn">⚡ Early-warning score: 87/100 · Risk: HIGH</span></span>
+            <span class="term-line"><span class="term-out">Remediation hook → retrain-trigger queued</span></span>
+            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cursor"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section id="capabilities">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">Core Capabilities</div>
+      <h2 class="section-title">Built for pre-incident.<br>Not post-mortems.</h2>
+    </div>
+
+    <div class="caps-grid reveal">
+      <div class="cap-item">
+        <div class="cap-num">01</div>
+        <div class="cap-name">Continuous Drift Detection</div>
+        <div class="cap-desc">Perpetual monitoring of distributional and representational drift — no manual windows, no stale snapshots.</div>
+      </div>
+      <div class="cap-item">
+        <div class="cap-num">02</div>
+        <div class="cap-name">Segment-Aware Analysis</div>
+        <div class="cap-desc">Slice health by user cohort, geography, feature bucket, or any custom dimension your model serves.</div>
+      </div>
+      <div class="cap-item">
+        <div class="cap-num">03</div>
+        <div class="cap-name">Real-Time Signal Aggregation</div>
+        <div class="cap-desc">Cross-layer signal fusion — data, model, embedding, and infra signals correlated in a unified stream.</div>
+      </div>
+      <div class="cap-item">
+        <div class="cap-num">04</div>
+        <div class="cap-name">Early-Warning Scoring</div>
+        <div class="cap-desc">Composite risk scores that quantify degradation trajectory — so you prioritize signals, not noise.</div>
+      </div>
+      <div class="cap-item">
+        <div class="cap-num">05</div>
+        <div class="cap-name">Policy-Driven Alerts</div>
+        <div class="cap-desc">Configure thresholds on drift rate, not just drift value. Alert on acceleration, correlation, and compound risk.</div>
+      </div>
+      <div class="cap-item">
+        <div class="cap-num">06</div>
+        <div class="cap-name">Automated Remediation Hooks</div>
+        <div class="cap-desc">Trigger retraining, traffic shifting, or custom webhooks automatically when risk scores cross policy thresholds.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DIFFERENTIATORS -->
+<section id="why" class="diff-section">
+  <div class="diff-inner">
+    <div class="reveal">
+      <div class="section-label">Why SecondGradient</div>
+      <h2 class="section-title">Dynamics-aware.<br>Not threshold-based.</h2>
+      <p class="section-desc">Every other tool watches the value. SecondGradient watches the <em>change in the change</em> — the second gradient of your system's health.</p>
+
+      <div class="diff-list">
+        <div class="diff-item">
+          <div class="diff-arrow">→</div>
+          <div class="diff-text"><strong>Detects drift acceleration</strong>, not just drift. Catches the signal before it becomes a symptom.</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-arrow">→</div>
+          <div class="diff-text"><strong>Tracks change over time</strong>, not snapshots. Velocity and momentum, not point-in-time readings.</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-arrow">→</div>
+          <div class="diff-text"><strong>Correlates signals</strong> across data, model, and infrastructure. No more siloed alerting.</div>
+        </div>
+        <div class="diff-item">
+          <div class="diff-arrow">→</div>
+          <div class="diff-text"><strong>Designed for pre-incident detection</strong>. Your team acts before users are affected.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal">
+      <div style="margin-top: 80px; padding: 40px; border: 1px solid var(--border); background: var(--panel);">
+        <div class="section-label" style="margin-bottom: 24px;">SecondGradient vs. Standard Monitoring</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <th style="text-align: left; padding: 10px 12px; color: var(--text-dim); letter-spacing: 0.06em; font-weight: 400;"></th>
+              <th style="text-align: center; padding: 10px 12px; color: var(--text-dim); letter-spacing: 0.06em; font-weight: 400;">Standard</th>
+              <th style="text-align: center; padding: 10px 12px; color: var(--amber); letter-spacing: 0.06em; font-weight: 400;">SecondGradient</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="padding: 12px; color: var(--text);">Drift detection</td>
+              <td style="padding: 12px; text-align: center; color: var(--text-dim);">Snapshot</td>
+              <td style="padding: 12px; text-align: center; color: var(--green);">Continuous velocity</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="padding: 12px; color: var(--text);">Alert trigger</td>
+              <td style="padding: 12px; text-align: center; color: var(--text-dim);">Threshold crossed</td>
+              <td style="padding: 12px; text-align: center; color: var(--green);">Acceleration detected</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="padding: 12px; color: var(--text);">Signal scope</td>
+              <td style="padding: 12px; text-align: center; color: var(--text-dim);">Single layer</td>
+              <td style="padding: 12px; text-align: center; color: var(--green);">Cross-layer correlated</td>
+            </tr>
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="padding: 12px; color: var(--text);">Segment analysis</td>
+              <td style="padding: 12px; text-align: center; color: var(--text-dim);">Manual slicing</td>
+              <td style="padding: 12px; text-align: center; color: var(--green);">Automatic segments</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; color: var(--text);">Timing</td>
+              <td style="padding: 12px; text-align: center; color: var(--red);">Post-incident</td>
+              <td style="padding: 12px; text-align: center; color: var(--green);">Pre-incident</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="cta-bg"></div>
+  <div class="cta-inner reveal">
+    <div class="cta-eyebrow">// Early Access</div>
+    <h2 class="cta-title">Stop watching fires.<br>Watch what starts them.</h2>
+    <p class="cta-sub">SecondGradient is in private beta. Join the waitlist and get early access to early-warning observability for your production ML systems.</p>
+    <div class="cta-form">
+      <input class="cta-input" type="email" placeholder="your@email.com">
+      <button class="cta-submit">Join Waitlist →</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">SecondGradient</div>
+  <div class="footer-text">Early-Warning Observability · ML Systems</div>
+  <div class="footer-links">
+    <a href="#">Docs</a>
+    <a href="#">GitHub</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(r => observer.observe(r));
+
+  // Canvas signal chart
+  const canvas = document.getElementById('sigChart');
+  const ctx = canvas.getContext('2d');
+
+  function drawChart() {
+    const W = canvas.offsetWidth;
+    const H = canvas.offsetHeight;
+    canvas.width = W;
+    canvas.height = H;
+
+    const pad = { l: 40, r: 16, t: 16, b: 28 };
+    const cW = W - pad.l - pad.r;
+    const cH = H - pad.t - pad.b;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(26,37,48,0.8)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + (i / 4) * cH;
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(W - pad.r, y);
+      ctx.stroke();
+    }
+
+    // T labels
+    ctx.fillStyle = '#5a7a90';
+    ctx.font = '10px JetBrains Mono';
+    ['T-6h','T-4h','T-2h','T'].forEach((label, i) => {
+      const x = pad.l + (i / 3) * cW;
+      ctx.fillText(label, x - 10, H - 6);
+    });
+
+    // Standard monitoring line (flat then spike)
+    const stdPoints = [0.05, 0.06, 0.05, 0.07, 0.06, 0.08, 0.07, 0.65];
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(90,122,144,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    stdPoints.forEach((v, i) => {
+      const x = pad.l + (i / (stdPoints.length - 1)) * cW;
+      const y = pad.t + (1 - v) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // SG line (gradual acceleration)
+    const sgPoints = [0.05, 0.08, 0.13, 0.22, 0.33, 0.47, 0.60, 0.72];
+    const grad = ctx.createLinearGradient(pad.l, 0, pad.l + cW, 0);
+    grad.addColorStop(0, 'rgba(232,160,32,0.2)');
+    grad.addColorStop(1, 'rgba(232,160,32,1)');
+
+    ctx.beginPath();
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2;
+    sgPoints.forEach((v, i) => {
+      const x = pad.l + (i / (sgPoints.length - 1)) * cW;
+      const y = pad.t + (1 - v) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Fill under SG
+    ctx.beginPath();
+    sgPoints.forEach((v, i) => {
+      const x = pad.l + (i / (sgPoints.length - 1)) * cW;
+      const y = pad.t + (1 - v) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(pad.l + cW, pad.t + cH);
+    ctx.lineTo(pad.l, pad.t + cH);
+    ctx.closePath();
+    const fillGrad = ctx.createLinearGradient(0, pad.t, 0, pad.t + cH);
+    fillGrad.addColorStop(0, 'rgba(232,160,32,0.12)');
+    fillGrad.addColorStop(1, 'rgba(232,160,32,0)');
+    ctx.fillStyle = fillGrad;
+    ctx.fill();
+
+    // Legend
+    ctx.fillStyle = '#5a7a90';
+    ctx.font = '10px JetBrains Mono';
+    ctx.fillRect(pad.l, pad.t, 16, 1.5);
+    ctx.fillText('standard', pad.l + 20, pad.t + 4);
+    ctx.fillStyle = '#e8a020';
+    ctx.fillRect(pad.l + 90, pad.t, 16, 2);
+    ctx.fillText('SecondGradient', pad.l + 110, pad.t + 4);
+
+    // Alert marker
+    const alertX = pad.l + (6 / 7) * cW;
+    ctx.strokeStyle = 'rgba(255,68,68,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(alertX, pad.t);
+    ctx.lineTo(alertX, pad.t + cH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#ff4444';
+    ctx.font = '10px JetBrains Mono';
+    ctx.fillText('T', alertX - 3, pad.t + 12);
+  }
+
+  drawChart();
+  window.addEventListener('resize', drawChart);
+</script>
+
+</body>
+</html>
