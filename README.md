@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  <img src="SecondGradient-logo.png" alt="SecondGradient logo" width="500"/>
+  <img src="assets/SecondGradient-logo.png" alt="SecondGradient logo" width="500"/>
 </p>
 
 ### **Early-warning observability for production ML systems**
