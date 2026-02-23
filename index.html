@@ -857,6 +857,81 @@
 
   .cta-submit:hover { background: #fff; }
 
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--dark);
+    border: 1px solid var(--amber);
+    padding: 20px 32px;
+    max-width: 420px;
+    width: calc(100% - 48px);
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    text-align: center;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: all;
+  }
+
+  .toast-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .toast-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--white);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .toast-msg {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .toast-msg span { color: var(--amber); }
+
+  .toast-close {
+    position: absolute;
+    top: 10px; right: 14px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .toast-close:hover { color: var(--white); }
+
+  .toast-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 2px;
+    background: var(--amber);
+    animation: none;
+  }
+
+  .toast.show .toast-bar {
+    animation: drain 4s linear forwards;
+  }
+
+  @keyframes drain { from { width: 100%; } to { width: 0%; } }
+
   /* ── FOOTER ── */
   footer {
     border-top: 1px solid var(--border);
@@ -923,7 +998,7 @@
     <li><a href="#capabilities">Capabilities</a></li>
     <li><a href="#why">Why Different</a></li>
   </ul>
-  <button class="nav-cta">Join Waitlist</button>
+  <button class="nav-cta">Request Access</button>
 </nav>
 
 <!-- HERO -->
@@ -953,8 +1028,8 @@
     </p>
 
     <div class="hero-actions">
-      <button class="btn-primary">Join Waitlist</button>
-      <button class="btn-ghost">Docs Coming Soon...</button>
+      <button class="btn-primary">Request Early Access</button>
+      <button class="btn-ghost">Read the Docs</button>
     </div>
   </div>
 
@@ -1279,6 +1354,15 @@
   </div>
 </section>
 
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <button class="toast-close" onclick="closeToast()">✕</button>
+  <span class="toast-icon">⚡</span>
+  <div class="toast-title">Signal received.</div>
+  <div class="toast-msg">You're on the list, <span id="toast-email"></span>.<br>We'll reach out before the early-warning goes wide.</div>
+  <div class="toast-bar"></div>
+</div>
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">SecondGradient</div>
@@ -1302,6 +1386,45 @@
     });
   }, { threshold: 0.12 });
   reveals.forEach(r => observer.observe(r));
+
+  // Waitlist form
+  let toastTimer;
+  const toast = document.getElementById('toast');
+  const toastEmail = document.getElementById('toast-email');
+  const input = document.querySelector('.cta-input');
+  const btn = document.querySelector('.cta-submit');
+
+  btn.addEventListener('click', () => {
+    const email = input.value.trim();
+    if (!email || !email.includes('@')) {
+      input.style.borderBottom = '2px solid var(--red)';
+      input.focus();
+      setTimeout(() => input.style.borderBottom = '', 1500);
+      return;
+    }
+    toastEmail.textContent = email;
+    input.value = '';
+    btn.textContent = 'You\'re in ✓';
+    btn.style.background = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Join Waitlist →'; btn.style.background = ''; }, 4000);
+    showToast();
+  });
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+
+  function showToast() {
+    clearTimeout(toastTimer);
+    // reset bar animation by re-cloning
+    const bar = toast.querySelector('.toast-bar');
+    const newBar = bar.cloneNode(true);
+    bar.replaceWith(newBar);
+    toast.classList.add('show');
+    toastTimer = setTimeout(closeToast, 4200);
+  }
+
+  function closeToast() {
+    toast.classList.remove('show');
+  }
 
   // Canvas signal chart
   const canvas = document.getElementById('sigChart');
