@@ -19,6 +19,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 from airflow import DAG
@@ -29,8 +30,18 @@ from airflow.utils.dates import days_ago
 # ---------------------------------------------------------------------------
 # Paths / env
 # ---------------------------------------------------------------------------
-RAW_INFERENCE_DIR = os.environ.get("RAW_INFERENCE_DIR", "/tmp/ml_drift/raw_inference")
-SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/tmp/ml_drift/snapshots")
+RAW_INFERENCE_DIR = os.environ.get("RAW_INFERENCE_DIR", "/opt/airflow/data/raw_inference")
+SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/opt/airflow/data/snapshots")
+
+ARTIFACT_DIR = Path(os.environ.get('ARTIFACT_DIR', '/opt/airflow/data/artifacts'))
+try:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        ARTIFACT_DIR.chmod(0o700)
+    except Exception:
+        pass
+except Exception:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -86,10 +97,14 @@ def _load_raw_inference_data(**ctx):
             ctx["ti"].xcom_push(key="row_count", value=len(df))
             ctx["ti"].xcom_push(key="columns", value=df.columns.tolist())
             # Persist df to a temp parquet so the next task can read it
-            tmp_path = f"/tmp/ml_drift/tmp_raw_{run_date}.parquet"
-            Path(tmp_path).parent.mkdir(parents=True, exist_ok=True)
-            df.to_parquet(tmp_path, index=False)
-            ctx["ti"].xcom_push(key="tmp_path", value=tmp_path)
+            ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+            tmp = ARTIFACT_DIR / f"raw_{run_date}_{uuid4().hex}.parquet"
+            df.to_parquet(tmp, index=False)
+            try:
+                os.chmod(tmp, 0o600)
+            except Exception:
+                pass
+            ctx["ti"].xcom_push(key="tmp_artifact_uri", value=str(tmp))
             return
     raise FileNotFoundError(f"Raw inference file not found for {run_date}")
 
@@ -101,9 +116,9 @@ def _validate_schema(**ctx):
     from data.validators import SchemaSpec, assert_valid
 
     run_date = ctx["ds"]
-    tmp_path = ctx["ti"].xcom_pull(key="tmp_path", task_ids="load_raw_inference_data")
+    tmp_artifact_uri = ctx["ti"].xcom_pull(key="tmp_artifact_uri", task_ids="load_raw_inference_data")
 
-    df = pd.read_parquet(tmp_path)
+    df = pd.read_parquet(tmp_artifact_uri)
 
     # Configure expected schema – adjust required_columns to your model's feature set
     spec = SchemaSpec(
@@ -125,15 +140,15 @@ def _save_snapshot(**ctx):
     from data.loaders import save_snapshot
 
     run_date = ctx["ds"]
-    tmp_path = ctx["ti"].xcom_pull(key="tmp_path", task_ids="load_raw_inference_data")
-    df = pd.read_parquet(tmp_path)
+    tmp_artifact_uri = ctx["ti"].xcom_pull(key="tmp_artifact_uri", task_ids="load_raw_inference_data")
+    df = pd.read_parquet(tmp_artifact_uri)
 
     saved_path = save_snapshot(df, run_date, snapshot_dir=SNAPSHOT_DIR, fmt="parquet")
     logger.info("Snapshot saved: %s", saved_path)
     ctx["ti"].xcom_push(key="snapshot_path", value=str(saved_path))
 
     # Clean up temp file
-    Path(tmp_path).unlink(missing_ok=True)
+    Path(tmp_artifact_uri).unlink(missing_ok=True)
 
 
 def _handle_late_data(**ctx):

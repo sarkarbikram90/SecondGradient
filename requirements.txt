@@ -1,0 +1,7 @@
+apache-airflow==2.8.1
+pandas==2.1.4
+pyarrow==14.0.0
+PyYAML==6.0
+scipy==1.11.4
+pydantic==2.5.0
+cryptography==41.0.7

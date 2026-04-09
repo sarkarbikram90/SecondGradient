@@ -26,6 +26,7 @@ import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 from airflow import DAG
@@ -36,10 +37,20 @@ from airflow.utils.dates import days_ago
 
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/tmp/ml_drift/snapshots")
-BASELINE_PATH = os.environ.get("BASELINE_PATH", "/tmp/ml_drift/baseline/baseline_stats.parquet")
-DRIFT_RESULTS_DIR = os.environ.get("DRIFT_RESULTS_DIR", "/tmp/ml_drift/drift_results")
+SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/opt/airflow/data/snapshots")
+BASELINE_PATH = os.environ.get("BASELINE_PATH", "/opt/airflow/data/baseline/baseline_stats.parquet")
+DRIFT_RESULTS_DIR = os.environ.get("DRIFT_RESULTS_DIR", "/opt/airflow/data/drift_results")
 RECENT_DAYS = int(os.environ.get("RECENT_INFERENCE_DAYS", "7"))
+
+ARTIFACT_DIR = Path(os.environ.get('ARTIFACT_DIR', '/opt/airflow/data/artifacts'))
+try:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        ARTIFACT_DIR.chmod(0o700)
+    except Exception:
+        pass
+except Exception:
+    pass
 
 SRC_DIR = str(Path(__file__).parents[1] / "src")
 
@@ -56,12 +67,15 @@ def _add_src():
 def _load_baseline(**ctx):
     _add_src()
     from data.loaders import load_baseline
-
     df = load_baseline(path=BASELINE_PATH)
-    tmp = "/tmp/ml_drift/tmp_baseline.parquet"
-    Path(tmp).parent.mkdir(parents=True, exist_ok=True)
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = ARTIFACT_DIR / f"baseline_{uuid4().hex}.parquet"
     df.to_parquet(tmp, index=False)
-    ctx["ti"].xcom_push(key="baseline_tmp", value=tmp)
+    try:
+        os.chmod(tmp, 0o600)
+    except Exception:
+        pass
+    ctx["ti"].xcom_push(key="baseline_artifact_uri", value=str(tmp))
     logger.info("Baseline loaded: %d rows, columns=%s", len(df), df.columns.tolist())
 
 
@@ -71,9 +85,14 @@ def _load_recent_inference(**ctx):
 
     run_date = ctx["ds"]
     df = load_recent_inference(n_days=RECENT_DAYS, snapshot_dir=SNAPSHOT_DIR, run_date=run_date)
-    tmp = f"/tmp/ml_drift/tmp_recent_{run_date}.parquet"
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = ARTIFACT_DIR / f"recent_{run_date}_{uuid4().hex}.parquet"
     df.to_parquet(tmp, index=False)
-    ctx["ti"].xcom_push(key="recent_tmp", value=tmp)
+    try:
+        os.chmod(tmp, 0o600)
+    except Exception:
+        pass
+    ctx["ti"].xcom_push(key="recent_artifact_uri", value=str(tmp))
     logger.info("Recent inference loaded: %d rows", len(df))
 
 
@@ -83,8 +102,8 @@ def _compute_drift_metrics(**ctx):
     from drift.ks_test import compute_ks_dataframe, compute_mean_variance_shift
 
     ti = ctx["ti"]
-    baseline_tmp = ti.xcom_pull(key="baseline_tmp", task_ids="load_baseline")
-    recent_tmp = ti.xcom_pull(key="recent_tmp", task_ids="load_recent_inference")
+    baseline_tmp = ti.xcom_pull(key="baseline_artifact_uri", task_ids="load_baseline")
+    recent_tmp = ti.xcom_pull(key="recent_artifact_uri", task_ids="load_recent_inference")
 
     baseline_df = pd.read_parquet(baseline_tmp)
     current_df = pd.read_parquet(recent_tmp)
@@ -111,14 +130,26 @@ def _compute_drift_metrics(**ctx):
     shift_path = str(results_dir / "shift.parquet")
 
     psi_df.to_parquet(psi_path, index=False)
+    try:
+        os.chmod(psi_path, 0o600)
+    except Exception:
+        pass
     ks_df.to_parquet(ks_path, index=False)
+    try:
+        os.chmod(ks_path, 0o600)
+    except Exception:
+        pass
     shift_df.to_parquet(shift_path, index=False)
+    try:
+        os.chmod(shift_path, 0o600)
+    except Exception:
+        pass
 
     ti.xcom_push(key="psi_path", value=psi_path)
     ti.xcom_push(key="ks_path", value=ks_path)
     ti.xcom_push(key="shift_path", value=shift_path)
 
-    logger.info("Drift metrics computed. PSI:\n%s", psi_df.to_string())
+    logger.info("Drift metrics computed. PSI summary rows=%d", len(psi_df))
 
 
 def _persist_drift_results(**ctx):
@@ -139,8 +170,13 @@ def _persist_drift_results(**ctx):
     }
 
     report_path = Path(DRIFT_RESULTS_DIR) / run_date / "drift_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
+    try:
+        os.chmod(report_path, 0o600)
+    except Exception:
+        pass
 
     logger.info("Drift report persisted: %s", report_path)
     ti.xcom_push(key="report_path", value=str(report_path))

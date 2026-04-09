@@ -22,6 +22,7 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import pandas as pd
 from airflow import DAG
@@ -33,8 +34,17 @@ from airflow.utils.dates import days_ago
 
 logger = logging.getLogger(__name__)
 
-SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/tmp/ml_drift/snapshots")
-MODEL_REGISTRY_DIR = os.environ.get("MODEL_REGISTRY_DIR", "/tmp/ml_drift/model_registry")
+SNAPSHOT_DIR = os.environ.get("SNAPSHOT_DIR", "/opt/airflow/data/snapshots")
+MODEL_REGISTRY_DIR = os.environ.get("MODEL_REGISTRY_DIR", "/opt/airflow/data/model_registry")
+ARTIFACT_DIR = Path(os.environ.get('ARTIFACT_DIR', '/opt/airflow/data/artifacts'))
+try:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        ARTIFACT_DIR.chmod(0o700)
+    except Exception:
+        pass
+except Exception:
+    pass
 SRC_DIR = str(Path(__file__).parents[1] / "src")
 
 
@@ -120,14 +130,19 @@ def _prepare_training_dataset(**ctx):
 
     combined = pd.concat(frames, ignore_index=True)
 
-    dataset_path = f"/tmp/ml_drift/retraining_dataset_{run_date}.parquet"
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    dataset_path = ARTIFACT_DIR / f"retraining_dataset_{run_date}_{uuid4().hex}.parquet"
     combined.to_parquet(dataset_path, index=False)
+    try:
+        os.chmod(dataset_path, 0o600)
+    except Exception:
+        pass
 
     logger.info(
         "Training dataset prepared: %d rows from %d snapshots → %s",
         len(combined), len(frames), dataset_path,
     )
-    ctx["ti"].xcom_push(key="dataset_path", value=dataset_path)
+    ctx["ti"].xcom_push(key="dataset_artifact_uri", value=str(dataset_path))
 
 
 def _trigger_retraining(**ctx):
@@ -143,7 +158,7 @@ def _trigger_retraining(**ctx):
     Here we simulate a retraining run and write model metadata.
     """
     run_date = ctx["ds"]
-    dataset_path = ctx["ti"].xcom_pull(key="dataset_path", task_ids="prepare_training_dataset")
+    dataset_path = ctx["ti"].xcom_pull(key="dataset_artifact_uri", task_ids="prepare_training_dataset")
 
     logger.info("🚀 Retraining pipeline triggered. Dataset: %s", dataset_path)
 
@@ -173,6 +188,10 @@ def _log_model_version(**ctx):
 
     registry_dir = Path(MODEL_REGISTRY_DIR)
     registry_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        registry_dir.chmod(0o700)
+    except Exception:
+        pass
 
     entry = {
         "model_version": model_version,
@@ -187,6 +206,10 @@ def _log_model_version(**ctx):
     log_path = registry_dir / f"{model_version}.json"
     with open(log_path, "w") as f:
         json.dump(entry, f, indent=2)
+    try:
+        os.chmod(log_path, 0o600)
+    except Exception:
+        pass
 
     logger.info("Model version logged: %s → %s", model_version, log_path)
     ti.xcom_push(key="model_log_path", value=str(log_path))
