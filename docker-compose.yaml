@@ -179,6 +179,19 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ---- Waitlist / Site API ----
+  waitlist:
+    build:
+      context: ./site/server
+    ports:
+      - "8000:8000"
+    environment:
+      WAITLIST_DB: ${WAITLIST_DB:-/opt/airflow/data/waitlist.db}
+      WAITLIST_ADMIN_TOKEN: ${WAITLIST_ADMIN_TOKEN}
+    volumes:
+      - ./site:/opt/site:ro
+    restart: unless-stopped
+
 volumes:
   postgres-db-volume:
   airflow-data:
