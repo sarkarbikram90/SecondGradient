@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SecondGradient — Early-Warning Observability for Production ML</title>
+<title>SecondGradient — Predictive Intelligence for ML Systems</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
@@ -993,10 +993,10 @@
     SecondGradient
   </div>
   <ul class="nav-links">
-    <li><a href="#monitors">What We Monitor</a></li>
+    <li><a href="#prediction">Prediction Engine</a></li>
     <li><a href="#how">How It Works</a></li>
-    <li><a href="#capabilities">Capabilities</a></li>
-    <li><a href="#why">Why Different</a></li>
+    <li><a href="#fusion">Signal Fusion</a></li>
+    <li><a href="#integration">Integration</a></li>
   </ul>
   <button class="nav-cta">Project in Progress</button>
 </nav>
@@ -1016,20 +1016,20 @@
   </div>
 
   <div class="hero-content">
-    <div class="hero-label">Early-Warning Observability · ML Systems</div>
+    <div class="hero-label">Predictive Intelligence · ML Systems</div>
 
     <h1 class="hero-title">
-      See failure<br>
-      before it <span class="accent">happens</span>
+      Know when your model<br>
+      will fail — <span class="accent">before</span> it does
     </h1>
 
     <p class="hero-sub">
-      In production ML, failures don't arrive instantly. They <strong>accelerate silently</strong> — across data distributions, embeddings, predictions, and downstream metrics. SecondGradient surfaces those early signals.
+      ML failures don't happen instantly. They <strong>accelerate silently</strong> — across data shifts, model drift, and infrastructure coupling. SecondGradient predicts system evolution, not just monitors symptoms.
     </p>
 
     <div class="hero-actions">
-      <button class="btn-primary">Project in Progress</button>
-      <button class="btn-ghost">Read the Docs</button>
+      <button class="btn-primary">View Demo</button>
+      <button class="btn-ghost">Architecture</button>
     </div>
   </div>
 
@@ -1057,169 +1057,228 @@
 <div class="ticker-wrap">
   <div class="ticker-track">
     <!-- duplicated for seamless loop -->
-    <div class="ticker-item"><span class="status status-warn"></span>PSI shift detected · feature:user_age_bucket · Δ=0.14</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Embedding cluster cohesion stable · model:rec-v3</div>
-    <div class="ticker-item"><span class="status status-crit"></span>Confidence entropy rising · segment:EU-mobile · +22% over 4h</div>
-    <div class="ticker-item"><span class="status status-warn"></span>Latency-prediction correlation detected · p95 coupling</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Drift velocity normal · feature:item_embedding · v=0.02</div>
-    <div class="ticker-item"><span class="status status-warn"></span>Segment degradation: region:SEA accuracy −3.1%</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Feedback loop amplitude within bounds · t−6h to t</div>
-    <div class="ticker-item"><span class="status status-crit"></span>Multivariate shift acceleration · feature set: checkout-flow</div>
-    <div class="ticker-item"><span class="status status-warn"></span>PSI shift detected · feature:user_age_bucket · Δ=0.14</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Embedding cluster cohesion stable · model:rec-v3</div>
-    <div class="ticker-item"><span class="status status-crit"></span>Confidence entropy rising · segment:EU-mobile · +22% over 4h</div>
-    <div class="ticker-item"><span class="status status-warn"></span>Latency-prediction correlation detected · p95 coupling</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Drift velocity normal · feature:item_embedding · v=0.02</div>
-    <div class="ticker-item"><span class="status status-warn"></span>Segment degradation: region:SEA accuracy −3.1%</div>
-    <div class="ticker-item"><span class="status status-ok"></span>Feedback loop amplitude within bounds · t−6h to t</div>
-    <div class="ticker-item"><span class="status status-crit"></span>Multivariate shift acceleration · feature set: checkout-flow</div>
+    <div class="ticker-item"><span class="status status-warn"></span>drift_velocity: 0.034 · accelerating · feature:user_age_bucket</div>
+    <div class="ticker-item"><span class="status status-ok"></span>entropy_stable: 1.12 · model:rec-v3 · segment:EU-mobile</div>
+    <div class="ticker-item"><span class="status status-crit"></span>latency_coupling: +22% · p95 correlation detected</div>
+    <div class="ticker-item"><span class="status status-warn"></span>cluster_cohesion: 0.61 · embedding shift · -18% in 3h</div>
+    <div class="ticker-item"><span class="status status-ok"></span>prediction_trajectory: normal · v=0.02 · t-6h to t</div>
+    <div class="ticker-item"><span class="status status-warn"></span>segment_degradation: region:SEA · accuracy -3.1%</div>
+    <div class="ticker-item"><span class="status status-ok"></span>feedback_amplitude: within bounds · t−6h to t</div>
+    <div class="ticker-item"><span class="status status-crit"></span>multivariate_acceleration: feature set:checkout-flow</div>
+    <div class="ticker-item"><span class="status status-warn"></span>drift_velocity: 0.034 · accelerating · feature:user_age_bucket</div>
+    <div class="ticker-item"><span class="status status-ok"></span>entropy_stable: 1.12 · model:rec-v3 · segment:EU-mobile</div>
+    <div class="ticker-item"><span class="status status-crit"></span>latency_coupling: +22% · p95 correlation detected</div>
+    <div class="ticker-item"><span class="status status-warn"></span>cluster_cohesion: 0.61 · embedding shift · -18% in 3h</div>
+    <div class="ticker-item"><span class="status status-ok"></span>prediction_trajectory: normal · v=0.02 · t-6h to t</div>
+    <div class="ticker-item"><span class="status status-warn"></span>segment_degradation: region:SEA · accuracy -3.1%</div>
+    <div class="ticker-item"><span class="status status-ok"></span>feedback_amplitude: within bounds · t−6h to t</div>
+    <div class="ticker-item"><span class="status status-crit"></span>multivariate_acceleration: feature set:checkout-flow</div>
   </div>
 </div>
 
-<!-- MONITORS -->
-<section id="monitors">
+<!-- PREDICTION ENGINE -->
+<section id="prediction" class="prediction-section">
   <div class="section-inner">
-    <div class="reveal">
-      <div class="section-label">Full Surface Coverage</div>
-      <h2 class="section-title">Every signal layer.<br>Nothing hidden.</h2>
-      <p class="section-desc">SecondGradient operates across the entire ML production surface — from raw data dynamics to infrastructure coupling.</p>
-    </div>
+    <div class="prediction-layout">
+      <div class="reveal">
+        <div class="section-label">Prediction Engine</div>
+        <h2 class="section-title">We don't alert.<br>We predict.</h2>
+        <p class="section-desc">Track drift velocity, acceleration, and trajectory. See the second gradient of your system's health — the rate of change in the change.</p>
 
-    <div class="monitors-grid reveal">
-      <div class="monitor-card card-data">
-        <div class="card-icon">⊕</div>
-        <div class="card-title">Data & Feature Dynamics</div>
-        <div class="card-desc">Detect distributional shifts before they corrupt model inputs. Univariate, multivariate, and interaction-level drift tracked continuously.</div>
-        <div class="tag-list">
-          <span class="tag">Distribution Shift</span>
-          <span class="tag">Population Stability</span>
-          <span class="tag">Density Changes</span>
-          <span class="tag">Feature Interaction Drift</span>
+        <div class="prediction-chart">
+          <div class="chart-label">// DRIFT ACCELERATION CURVE · model:rec-v3 · segment:EU-mobile</div>
+          <canvas class="chart-canvas" id="predictionChart"></canvas>
         </div>
       </div>
 
-      <div class="monitor-card card-model">
-        <div class="card-icon">◈</div>
-        <div class="card-title">Model Behavior</div>
-        <div class="card-desc">Monitor how predictions and confidence evolve over time. Catch confidence collapse, entropy growth, and per-segment degradation early.</div>
-        <div class="tag-list">
-          <span class="tag">Prediction Drift</span>
-          <span class="tag">Confidence Collapse</span>
-          <span class="tag">Entropy Growth</span>
-          <span class="tag">Segment Degradation</span>
-        </div>
-      </div>
-
-      <div class="monitor-card card-embed">
-        <div class="card-icon">⬡</div>
-        <div class="card-title">Embeddings & Representations</div>
-        <div class="card-desc">Track how your latent space evolves. Vector space movement, cluster fragmentation, and representation instability — measured continuously.</div>
-        <div class="tag-list">
-          <span class="tag">Vector Space Movement</span>
-          <span class="tag">Cluster Fragmentation</span>
-          <span class="tag">Latent Instability</span>
-        </div>
-      </div>
-
-      <div class="monitor-card card-sys">
-        <div class="card-icon">⟁</div>
-        <div class="card-title">System Signals</div>
-        <div class="card-desc">Correlate infrastructure behavior with model health. Catch feedback loop amplification and cross-service degradation patterns.</div>
-        <div class="tag-list">
-          <span class="tag">Latency Coupling</span>
-          <span class="tag">Throughput</span>
-          <span class="tag">Feedback Loops</span>
-          <span class="tag">Correlated Degradation</span>
+      <div class="reveal">
+        <div class="prediction-terminal">
+          <div class="term-bar">
+            <div class="term-dot"></div>
+            <div class="term-dot"></div>
+            <div class="term-dot"></div>
+            <span class="term-title">secondgradient.predict</span>
+          </div>
+          <div class="term-body">
+            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cmd">sg predict --model rec-v3 --segment EU-mobile</span></span>
+            <span class="term-line"><span class="term-out">Analyzing signal trajectories...</span></span>
+            <span class="term-line">&nbsp;</span>
+            <span class="term-line"><span class="term-key">drift_velocity    </span><span class="term-val">0.034</span> <span class="term-warn">↑ accelerating</span></span>
+            <span class="term-line"><span class="term-key">acceleration_rate </span><span class="term-val">0.008/h</span> <span class="term-err">⚠ critical</span></span>
+            <span class="term-line"><span class="term-key">predicted_failure </span><span class="term-val">T+90min</span> <span class="term-err">🚨 imminent</span></span>
+            <span class="term-line"><span class="term-key">confidence_drop  </span><span class="term-val">-22%</span> <span class="term-err">↓ entropy rising</span></span>
+            <span class="term-line">&nbsp;</span>
+            <span class="term-line"><span class="term-warn">⚡ Risk score: 94/100 · Trajectory: FAILURE</span></span>
+            <span class="term-line"><span class="term-out">Automated intervention triggered</span></span>
+            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cursor"></span></span>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- TIMELINE -->
-<section id="how" class="timeline-section">
+<!-- HOW IT WORKS -->
+<section id="how">
   <div class="section-inner">
-    <div class="timeline-layout">
-      <div class="reveal">
-        <div class="section-label">How It Works</div>
-        <h2 class="section-title">If accuracy drops at T,<br>we watched T−n.</h2>
-        <p class="section-desc" style="margin-bottom: 0;">Standard monitoring catches fires. SecondGradient reads the smoke — tracking dynamics and accelerations, not just snapshots.</p>
+    <div class="reveal">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">From signals<br>to predictions.</h2>
+      <p class="section-desc">A real-time pipeline that transforms raw system signals into predictive intelligence. No snapshots, no thresholds — just continuous trajectory analysis.</p>
+    </div>
 
-        <div class="timeline" style="margin-top: 48px;">
-          <div class="timeline-event">
-            <div class="t-marker">
-              <span class="t-time">T−6h</span>
-              <div class="t-dot active"></div>
-            </div>
-            <div class="t-content">
-              <div class="t-label">Drift Acceleration Detected</div>
-              <div class="t-detail">Feature distribution velocity increases. PSI change rate doubles over 2h window. SecondGradient flags early-warning signal.</div>
-              <span class="t-badge badge-sg">⚡SecondGradient</span>
-            </div>
-          </div>
-          <div class="timeline-event">
-            <div class="t-marker">
-              <span class="t-time">T−3h</span>
-              <div class="t-dot active"></div>
-            </div>
-            <div class="t-content">
-              <div class="t-label">Embedding Cluster Shift</div>
-              <div class="t-detail">Latent space centroid movement in segment: EU-mobile. Cluster cohesion drops 18%. Correlated with upstream feature shift.</div>
-              <span class="t-badge badge-sg">⚡ SecondGradient</span>
-            </div>
-          </div>
-          <div class="timeline-event">
-            <div class="t-marker">
-              <span class="t-time">T−1h</span>
-              <div class="t-dot active"></div>
-            </div>
-            <div class="t-content">
-              <div class="t-label">Confidence Entropy Rising</div>
-              <div class="t-detail">Model confidence entropy increases 22%. Prediction distribution tightening on low-score bucket. Automated remediation hook triggered.</div>
-              <span class="t-badge badge-sg">⚡ SecondGradient</span>
-            </div>
-          </div>
-          <div class="timeline-event">
-            <div class="t-marker">
-              <span class="t-time">T</span>
-              <div class="t-dot warn"></div>
-            </div>
-            <div class="t-content">
-              <div class="t-label">Accuracy Drops — Alert Fires</div>
-              <div class="t-detail">Traditional monitoring detects accuracy regression. But your team already knew — and acted — 6 hours ago.</div>
-              <span class="t-badge badge-std">Standard Monitoring</span>
-            </div>
-          </div>
+    <div class="pipeline reveal">
+      <div class="pipeline-step">
+        <div class="step-icon">🤖</div>
+        <div class="step-content">
+          <h3>ML Service Agent</h3>
+          <p>Embedded agents capture real-time signals from your ML services — predictions, confidence scores, latency metrics, and feature distributions.</p>
+        </div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-step">
+        <div class="step-icon">📡</div>
+        <div class="step-content">
+          <h3>Kafka Stream Processing</h3>
+          <p>Signals flow through Kafka for low-latency aggregation. Time-series data is buffered and enriched with metadata for correlation analysis.</p>
+        </div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-step">
+        <div class="step-icon">⚙️</div>
+        <div class="step-content">
+          <h3>Signal Engine</h3>
+          <p>Advanced algorithms compute drift velocity, acceleration, and trajectory. Cross-layer signals are fused into unified risk scores.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SIGNAL FUSION -->
+<section id="fusion">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">Signal Fusion</div>
+      <h2 class="section-title">Four signal layers.<br>One risk score.</h2>
+      <p class="section-desc">Data, model, embeddings, and infrastructure signals are correlated in real-time. Individual metrics become system intelligence.</p>
+    </div>
+
+    <div class="fusion-grid reveal">
+      <div class="fusion-card card-data">
+        <div class="fusion-icon">⊕</div>
+        <div class="fusion-title">Data Signals</div>
+        <div class="fusion-desc">Distribution shifts, population stability, feature interactions — tracked continuously across all input streams.</div>
+        <div class="fusion-metrics">
+          <div class="metric">PSI Change <span class="val">0.14</span></div>
+          <div class="metric">Drift Velocity <span class="val">0.034</span></div>
+          <div class="metric">Interaction Drift <span class="val">+8%</span></div>
         </div>
       </div>
 
-      <div class="reveal">
-        <div class="signal-vis">
-          <div class="sig-label">// DRIFT ACCELERATION CURVE · model:rec-v3 · segment:EU-mobile</div>
-          <canvas class="sig-canvas" id="sigChart"></canvas>
+      <div class="fusion-card card-model">
+        <div class="fusion-icon">◈</div>
+        <div class="fusion-title">Model Signals</div>
+        <div class="fusion-desc">Prediction drift, confidence entropy, segment degradation — behavioral changes that precede accuracy drops.</div>
+        <div class="fusion-metrics">
+          <div class="metric">Confidence Entropy <span class="val">1.42</span></div>
+          <div class="metric">Segment Accuracy <span class="val">-3.1%</span></div>
+          <div class="metric">Prediction Variance <span class="val">+15%</span></div>
         </div>
+      </div>
 
-        <div class="terminal" style="margin-top: 1px;">
-          <div class="term-bar">
-            <div class="term-dot"></div>
-            <div class="term-dot"></div>
-            <div class="term-dot"></div>
-            <span class="term-title">secondgradient.monitor</span>
+      <div class="fusion-card card-infra">
+        <div class="fusion-icon">⟁</div>
+        <div class="fusion-title">Infrastructure Signals</div>
+        <div class="fusion-desc">Latency coupling, throughput changes, feedback loops — system-level patterns that amplify model issues.</div>
+        <div class="fusion-metrics">
+          <div class="metric">Latency Correlation <span class="val">0.78</span></div>
+          <div class="metric">Throughput Drop <span class="val">-12%</span></div>
+          <div class="metric">Feedback Amplitude <span class="val">1.3x</span></div>
+        </div>
+      </div>
+
+      <div class="fusion-result">
+        <div class="result-score">87</div>
+        <div class="result-label">COMPOSITE RISK SCORE</div>
+        <div class="result-desc">Signals fused into a single, actionable risk metric. Higher scores indicate accelerating degradation trajectories.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROOT CAUSE INTELLIGENCE -->
+<section>
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">Root Cause Intelligence</div>
+      <h2 class="section-title">Actionable warnings.<br>Not just alerts.</h2>
+      <p class="section-desc">When risk scores cross thresholds, SecondGradient provides immediate context — root cause, impact assessment, and time-to-failure estimates.</p>
+
+      <div class="root-cause reveal">
+        <div class="root-header">
+          <div class="root-icon">⚠</div>
+          <div class="root-title">EARLY WARNING DETECTED</div>
+        </div>
+        <div class="root-details">
+          <div class="detail-item">
+            <div class="detail-label">Root Cause</div>
+            <div class="detail-value err">DATA DRIFT</div>
           </div>
-          <div class="term-body">
-            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cmd">sg monitor --model rec-v3 --segment EU-mobile</span></span>
-            <span class="term-line"><span class="term-out">Connecting to signal stream...</span></span>
-            <span class="term-line">&nbsp;</span>
-            <span class="term-line"><span class="term-key">drift_velocity  </span><span class="term-val">0.034</span> <span class="term-warn">↑ accelerating</span></span>
-            <span class="term-line"><span class="term-key">psi_change_rate </span><span class="term-val">0.14/h</span> <span class="term-warn">⚠ 2× baseline</span></span>
-            <span class="term-line"><span class="term-key">cluster_cohesion</span><span class="term-val">0.61</span> <span class="term-err">↓ -18% in 3h</span></span>
-            <span class="term-line"><span class="term-key">conf_entropy    </span><span class="term-val">1.42</span> <span class="term-err">↑ +22% alert</span></span>
-            <span class="term-line">&nbsp;</span>
-            <span class="term-line"><span class="term-warn">⚡ Early-warning score: 87/100 · Risk: HIGH</span></span>
-            <span class="term-line"><span class="term-out">Remediation hook → retrain-trigger queued</span></span>
-            <span class="term-line"><span class="term-prompt">›</span> <span class="term-cursor"></span></span>
+          <div class="detail-item">
+            <div class="detail-label">Impact</div>
+            <div class="detail-value warn">Latency increase +22%</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Prediction</div>
+            <div class="detail-value err">Failure in 90 minutes</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Confidence</div>
+            <div class="detail-value">94%</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATION -->
+<section id="integration">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-label">Integration</div>
+      <h2 class="section-title">Plug into your stack.<br>Start predicting.</h2>
+      <p class="section-desc">Engineers know how to integrate systems. SecondGradient fits into your existing ML infrastructure with minimal friction.</p>
+    </div>
+
+    <div class="integration-grid reveal">
+      <div class="integration-card">
+        <div class="integration-icon">>_</div>
+        <div class="integration-title">CLI Integration</div>
+        <div class="integration-desc">Command-line tools for monitoring, prediction, and automated remediation. Perfect for CI/CD pipelines and manual operations.</div>
+        <div class="integration-code">sg monitor --model rec-v3 --kafka localhost:9092</div>
+      </div>
+
+      <div class="integration-card">
+        <div class="integration-icon">📡</div>
+        <div class="integration-title">Kafka Streams</div>
+        <div class="integration-desc">Native Kafka integration for real-time signal ingestion. Connect to your existing event streams with zero configuration.</div>
+        <div class="integration-code">bootstrap.servers=localhost:9092<br>topic=ml-signals</div>
+      </div>
+
+      <div class="integration-card">
+        <div class="integration-icon">📊</div>
+        <div class="integration-title">Prometheus Metrics</div>
+        <div class="integration-desc">Export risk scores and predictions as Prometheus metrics. Integrate with Grafana dashboards and alerting rules.</div>
+        <div class="integration-code">sg_risk_score{model="rec-v3"} 87</div>
+      </div>
+
+      <div class="integration-card">
+        <div class="integration-icon">⚡</div>
+        <div class="integration-title">Flink Processing</div>
+        <div class="integration-desc">Stream processing with Apache Flink for high-throughput signal analysis. Scale to millions of events per second.</div>
+        <div class="integration-code">StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();</div>
       </div>
     </div>
   </div>
@@ -1230,39 +1289,40 @@
   <div class="section-inner">
     <div class="reveal">
       <div class="section-label">Core Capabilities</div>
-      <h2 class="section-title">Built for pre-incident.<br>Not post-mortems.</h2>
+      <h2 class="section-title">Prediction.<br>Correlation.<br>Trajectory.</h2>
+      <p class="section-desc">Built for the dynamics of production ML. Not just detecting problems, but predicting their evolution and impact.</p>
     </div>
 
     <div class="caps-grid reveal">
       <div class="cap-item">
         <div class="cap-num">01</div>
-        <div class="cap-name">Continuous Drift Detection</div>
-        <div class="cap-desc">Perpetual monitoring of distributional and representational drift — no manual windows, no stale snapshots.</div>
+        <div class="cap-name">Trajectory Modeling</div>
+        <div class="cap-desc">Track how system health evolves over time. Velocity, acceleration, and momentum analysis for predictive insights.</div>
       </div>
       <div class="cap-item">
         <div class="cap-num">02</div>
-        <div class="cap-name">Segment-Aware Analysis</div>
-        <div class="cap-desc">Slice health by user cohort, geography, feature bucket, or any custom dimension your model serves.</div>
+        <div class="cap-name">Cross-Layer Correlation</div>
+        <div class="cap-desc">Connect data drift to model behavior to infrastructure issues. See the full causal chain of system degradation.</div>
       </div>
       <div class="cap-item">
         <div class="cap-num">03</div>
-        <div class="cap-name">Real-Time Signal Aggregation</div>
-        <div class="cap-desc">Cross-layer signal fusion — data, model, embedding, and infra signals correlated in a unified stream.</div>
+        <div class="cap-name">Real-Time Fusion</div>
+        <div class="cap-desc">Combine multiple signal streams into unified risk scores. No more siloed monitoring, just system intelligence.</div>
       </div>
       <div class="cap-item">
         <div class="cap-num">04</div>
-        <div class="cap-name">Early-Warning Scoring</div>
-        <div class="cap-desc">Composite risk scores that quantify degradation trajectory — so you prioritize signals, not noise.</div>
+        <div class="cap-name">Time-to-Failure Prediction</div>
+        <div class="cap-desc">Estimate when failures will occur based on current trajectories. Give teams hours or days of advance warning.</div>
       </div>
       <div class="cap-item">
         <div class="cap-num">05</div>
-        <div class="cap-name">Policy-Driven Alerts</div>
-        <div class="cap-desc">Configure thresholds on drift rate, not just drift value. Alert on acceleration, correlation, and compound risk.</div>
+        <div class="cap-name">Automated Intervention</div>
+        <div class="cap-desc">Trigger retraining, traffic shifting, or custom actions automatically when risk thresholds are crossed.</div>
       </div>
       <div class="cap-item">
         <div class="cap-num">06</div>
-        <div class="cap-name">Automated Remediation Hooks</div>
-        <div class="cap-desc">Trigger retraining, traffic shifting, or custom webhooks automatically when risk scores cross policy thresholds.</div>
+        <div class="cap-name">Segment Intelligence</div>
+        <div class="cap-desc">Monitor health by user cohorts, regions, or custom segments. Catch localized issues before they spread.</div>
       </div>
     </div>
   </div>
@@ -1345,8 +1405,8 @@
   <div class="cta-bg"></div>
   <div class="cta-inner reveal">
     <div class="cta-eyebrow">// Early Access</div>
-    <h2 class="cta-title">Stop watching fires.<br>Watch what starts them.</h2>
-    <p class="cta-sub">SecondGradient is in private beta. Join the waitlist and get early access to early-warning observability for your production ML systems.</p>
+    <h2 class="cta-title">Stop reacting.<br>Start predicting.</h2>
+    <p class="cta-sub">SecondGradient is in active development. Join the waitlist and get early access to early-warning observability for your production ML systems.</p>
     <div class="cta-form">
       <input class="cta-input" type="email" placeholder="your@email.com">
       <button class="cta-submit">Join Waitlist →</button>
