@@ -8,14 +8,18 @@ services:
     volumes:
       - ./services/api:/app
       - ./services/processor:/app/services/processor
+      - ./data:/app/data
     environment:
       - PYTHONPATH=/app
+      - DB_PATH=/app/data/secondgradient.db
+      - DATA_DIR=/app/data
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      start_period: 10s
+      retries: 5
 
   frontend:
     build: ./services/frontend

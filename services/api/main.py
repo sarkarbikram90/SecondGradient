@@ -4,28 +4,59 @@ SecondGradient API - MVP Version
 FastAPI backend for ingesting ML events and serving predictions.
 """
 
-from fastapi import FastAPI, HTTPException
+import json
+import logging
+import os
+import sys
+import time
+from typing import Dict, Any, Optional
+
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
-import time
-import uvicorn
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+from services.api.db import DB_PATH, get_connection, init_db
+from services.api.repository import (
+    save_event,
+    get_events,
+    save_signal,
+    get_signals,
+    save_prediction,
+    get_latest_prediction,
+)
 from services.processor.engine import engine
 
-app = FastAPI(
-    title="SecondGradient API",
-    description="Predictive Intelligence for ML Systems",
-    version="0.1.0"
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(asctime)s %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
+logger = logging.getLogger('secondgradient')
+
+app = FastAPI(
+    title='SecondGradient API',
+    description='Predictive Intelligence for ML Systems',
+    version='0.1.0',
+)
+
+metrics = {
+    'events_processed': 0,
+    'signals_computed': 0,
+    'predictions_generated': 0,
+    'latency_seconds': [],
+}
 
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 
@@ -46,143 +77,165 @@ class APIResponse(BaseModel):
     timestamp: float
 
 
-@app.post("/api/events", response_model=APIResponse)
+@app.on_event('startup')
+async def startup_event():
+    init_db()
+    logger.info('Database initialized and ready')
+
+
+def classify_root_cause(prediction: Dict[str, Any]) -> str:
+    if prediction.get('avg_acceleration', 0) > 0.002:
+        return 'DATA'
+    if prediction.get('avg_velocity', 0) > 0.02:
+        return 'MODEL'
+    if prediction.get('avg_drift', 0) > 0.25:
+        return 'DATA'
+    return 'EARLY_WARNING'
+
+
+@app.post('/api/events', response_model=APIResponse)
 async def ingest_event(event: MLEvent):
-    """
-    Ingest an ML inference event for processing.
+    start_time = time.time()
+    logger.info('Event received model=%s', event.model)
 
-    This endpoint accepts ML prediction events and processes them through
-    the signal engine to detect drift, velocity, and acceleration patterns.
-    """
     try:
-        # Process the event
-        result = engine.process_event(
+        event_timestamp = event.timestamp or time.time()
+        event_id = save_event(event.model, event_timestamp, event.features, event.prediction)
+        logger.info('Event ingested model=%s event_id=%s', event.model, event_id)
+
+        result = engine.process_event(model=event.model, features=event.features, timestamp=event_timestamp)
+        logger.info('Event processed model=%s', event.model)
+
+        for feature_name, feature_result in result.get('features', {}).items():
+            save_signal(
+                model=event.model,
+                feature=feature_name,
+                drift=feature_result['drift'],
+                velocity=feature_result['velocity'],
+                acceleration=feature_result['acceleration'],
+                timestamp=event_timestamp,
+            )
+            metrics['signals_computed'] += 1
+            logger.info(
+                'Signal computed model=%s feature=%s drift=%.4f velocity=%.6f acceleration=%.6f',
+                event.model,
+                feature_name,
+                feature_result['drift'],
+                feature_result['velocity'],
+                feature_result['acceleration'],
+            )
+
+        prediction = result.get('prediction', {})
+        root_cause = classify_root_cause(prediction)
+        prediction_id = save_prediction(
             model=event.model,
-            features=event.features,
-            timestamp=event.timestamp
+            risk=prediction.get('risk', 'UNKNOWN'),
+            time_to_failure=prediction.get('time_to_failure_minutes'),
+            confidence=prediction.get('confidence', 'LOW'),
+            root_cause=root_cause,
+            timestamp=event_timestamp,
         )
+        metrics['predictions_generated'] += 1
+        logger.info(
+            'Prediction generated model=%s id=%s risk=%s ttf=%s confidence=%s root_cause=%s',
+            event.model,
+            prediction_id,
+            prediction.get('risk'),
+            prediction.get('time_to_failure_minutes'),
+            prediction.get('confidence'),
+            root_cause,
+        )
+
+        metrics['events_processed'] += 1
+        latency = time.time() - start_time
+        metrics['latency_seconds'].append(latency)
 
         return APIResponse(
             success=True,
-            data=result,
-            message="Event processed successfully",
-            timestamp=time.time()
+            data={'event_id': event_id, 'prediction_id': prediction_id, 'result': result},
+            message='Event processed successfully',
+            timestamp=time.time(),
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        logger.exception('Failed to ingest event model=%s', event.model)
+        raise HTTPException(status_code=500, detail=f'Processing failed: {str(e)}')
 
 
-@app.get("/api/models/{model_id}", response_model=APIResponse)
-async def get_model_state(model_id: str):
-    """
-    Get current state and predictions for a model.
-
-    Returns the latest signal analysis including drift, velocity,
-    acceleration, and failure predictions.
-    """
+@app.get('/api/predictions')
+async def get_predictions(model: Optional[str] = Query(None)):
     try:
-        state = engine.get_model_state(model_id)
+        prediction = get_latest_prediction(model)
+        if prediction:
+            return prediction
 
-        # Add prediction if we have enough data
-        if state["feature_count"] > 0:
-            # Get the latest prediction by processing a dummy event
-            # In production, this would be cached
-            prediction_result = engine.process_event(model_id, {}, time.time())
-            if "prediction" in prediction_result:
-                state["prediction"] = prediction_result["prediction"]
-
-        return APIResponse(
-            success=True,
-            data=state,
-            message=f"Retrieved state for model {model_id}",
-            timestamp=time.time()
-        )
-
+        return {
+            'model': model or 'unknown',
+            'risk': 'LOW',
+            'time_to_failure': None,
+            'confidence': 'LOW',
+            'root_cause': 'NONE',
+            'timestamp': time.time(),
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get model state: {str(e)}")
+        logger.exception('Failed to fetch latest prediction')
+        raise HTTPException(status_code=500, detail=f'Failed to get predictions: {str(e)}')
 
 
-@app.get("/api/health", response_model=APIResponse)
+@app.get('/api/signals')
+async def get_signal_history(model: Optional[str] = Query(None), limit: int = 100):
+    try:
+        signals = get_signals(model, limit)
+        return {'count': len(signals), 'signals': signals}
+    except Exception as e:
+        logger.exception('Failed to fetch signals')
+        raise HTTPException(status_code=500, detail=f'Failed to get signals: {str(e)}')
+
+
+@app.get('/api/metrics')
+async def get_metrics():
+    average_latency = None
+    if metrics['latency_seconds']:
+        average_latency = sum(metrics['latency_seconds']) / len(metrics['latency_seconds'])
+
+    return {
+        'events_processed': metrics['events_processed'],
+        'signals_computed': metrics['signals_computed'],
+        'predictions_generated': metrics['predictions_generated'],
+        'average_latency_seconds': average_latency,
+    }
+
+
+@app.get('/api/health', response_model=APIResponse)
 async def health_check():
-    """Health check endpoint."""
-    return APIResponse(
-        success=True,
-        data={"status": "healthy", "engine_initialized": True},
-        message="Service is healthy",
-        timestamp=time.time()
-    )
-
-
-@app.get("/api/models", response_model=APIResponse)
-async def list_models():
-    """List all models being tracked."""
     try:
-        models = set()
-        for key in engine.states.keys():
-            model = key.split(":", 1)[0]
-            models.add(model)
+        with get_connection() as conn:
+            conn.execute('SELECT 1').fetchone()
 
         return APIResponse(
             success=True,
-            data={"models": list(models), "count": len(models)},
-            message=f"Found {len(models)} models",
-            timestamp=time.time()
+            data={'status': 'healthy', 'engine_initialized': True, 'db_path': DB_PATH},
+            message='Service is healthy',
+            timestamp=time.time(),
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list models: {str(e)}")
+        logger.exception('Health check failed')
+        raise HTTPException(status_code=503, detail='Service unhealthy')
 
 
-@app.get("/api/predictions")
-async def get_latest_predictions():
-    """
-    Get the latest predictions for all models.
-
-    Returns real-time drift analysis data for frontend visualization.
-    """
+@app.get('/api/models')
+async def list_models():
     try:
-        predictions = []
-
-        for model_key, state in engine.states.items():
-            if state["feature_count"] > 0:
-                # Get the latest data point
-                latest_data = state["data"][-1] if state["data"] else None
-                if latest_data:
-                    predictions.append({
-                        "model": model_key.split(":", 1)[0],
-                        "timestamp": latest_data["timestamp"],
-                        "drift": latest_data["drift"],
-                        "velocity": latest_data["velocity"],
-                        "acceleration": latest_data["acceleration"],
-                        "time_to_failure": latest_data["time_to_failure"],
-                        "confidence": latest_data["confidence"]
-                    })
-
-        # Return the most recent prediction across all models
-        if predictions:
-            latest = max(predictions, key=lambda x: x["timestamp"])
-            return latest
-        else:
-            # Return default values if no data yet
-            return {
-                "model": "unknown",
-                "timestamp": time.time(),
-                "drift": 0.0,
-                "velocity": 0.0,
-                "acceleration": 0.0,
-                "time_to_failure": 3600.0,  # 1 hour default
-                "confidence": 0.0
-            }
-
+        events = get_events(limit=1000)
+        models = sorted({event['model'] for event in events})
+        return {'models': models, 'count': len(models)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get predictions: {str(e)}")
+        logger.exception('Failed to list models')
+        raise HTTPException(status_code=500, detail=f'Failed to list models: {str(e)}')
 
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+if __name__ == '__main__':
+    import uvicorn
+
+    uvicorn.run('main:app', host='0.0.0.0', port=8000, reload=True)

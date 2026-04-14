@@ -150,11 +150,13 @@ Run the integration test to ensure everything works:
 
 ```bash
 python test_mvp.py
+pytest tests/test_e2e.py
 ```
 
 This tests:
 - ✅ API health and responsiveness
 - ✅ ML event ingestion
+- ✅ Signal and prediction persistence
 - ✅ Real-time predictions generation
 - ✅ Frontend connectivity
 

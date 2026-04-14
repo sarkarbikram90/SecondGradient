@@ -17,9 +17,13 @@ import numpy as np
 class DriftSimulator:
     """Simulates ML inference data with realistic drift patterns."""
 
-    def __init__(self, api_url: str = "http://api:8000"):
+    def __init__(self, api_url: str = "http://api:8000", seed: int | None = None):
         self.api_url = api_url
         self.models = ["rec-v1", "fraud-detector", "pricing-model"]
+        self.seed = seed
+        if self.seed is not None:
+            random.seed(self.seed)
+            np.random.seed(self.seed)
 
         # Baseline feature distributions
         self.baselines = {
@@ -218,10 +222,12 @@ def main():
                        help="Simulation duration in seconds")
     parser.add_argument("--model", default="rec-v1",
                        help="Model to use for failure simulation")
+    parser.add_argument("--seed", type=int, default=None,
+                       help="Optional deterministic seed for reproducible output")
 
     args = parser.parse_args()
 
-    simulator = DriftSimulator(args.api_url)
+    simulator = DriftSimulator(args.api_url, seed=args.seed)
 
     if args.mode == "normal":
         simulator.run_normal_simulation(args.duration)
