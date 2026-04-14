@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./services/api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/api:/app
+      - ./services/processor:/app/services/processor
+    environment:
+      - PYTHONPATH=/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build: ./services/frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/frontend:/app
+      - /app/node_modules
+    command: npm run dev
+    depends_on:
+      - api
+    environment:
+      - NODE_ENV=development
+
+  simulator:
+    build: ./services/api  # Use same Python image
+    volumes:
+      - ./examples/simulator:/app
+      - ./services/processor:/app/services/processor
+    environment:
+      - PYTHONPATH=/app
+      - API_URL=http://api:8000
+    command: python simulator.py
+    depends_on:
+      - api

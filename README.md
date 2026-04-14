@@ -82,43 +82,81 @@ SecondGradient is built as a streaming-first system:
 
 ---
 
-## Quick Start
+## Quick Start (MVP Demo)
+
+SecondGradient MVP demonstrates real-time drift acceleration detection and time-to-failure prediction.
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Python 3.11+ (for local development)
+
+### Run the Full Demo
 
 ```bash
 # Clone and setup
 git clone https://github.com/yourorg/secondgradient.git
 cd secondgradient
 
-# Start with Docker Compose
+# Start all services
 docker compose up --build
 
 # This brings up:
-# - Kafka (event backbone)
-# - TimescaleDB (time-series storage)
-# - Stream processor (PyFlink)
-# - API (FastAPI)
-# - Frontend (Next.js)
+# - API (FastAPI backend) on http://localhost:8000
+# - Frontend (Next.js dashboard) on http://localhost:3000
+# - Simulator (generates test data)
 ```
 
-Send a test event:
+### Manual Testing
+
+Send a test ML event:
 
 ```bash
 curl -X POST http://localhost:8000/api/events \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "rec-v3",
-    "timestamp": 1640995200,
-    "features": {"user_age": 25, "item_category": "electronics"},
-    "prediction": 0.87,
-    "metadata": {"latency": 120}
+    "model": "rec-v1",
+    "features": {
+      "user_age": 35.2,
+      "item_category": 0.7,
+      "session_length": 120.5
+    },
+    "prediction": 0.85
   }'
 ```
 
-Check predictions:
+Check current predictions:
 
 ```bash
-curl http://localhost:8000/api/prediction/rec-v3
+curl http://localhost:8000/api/predictions
 ```
+
+### Run Simulator for Demo Data
+
+```bash
+# Normal operation (baseline)
+python examples/simulator/simulator.py --mode normal --duration 30
+
+# Gradual drift
+python examples/simulator/simulator.py --mode drift --duration 60
+
+# Accelerating failure (triggers predictions)
+python examples/simulator/simulator.py --mode failure --model rec-v1
+```
+
+### Validate the Demo
+
+Run the integration test to ensure everything works:
+
+```bash
+python test_mvp.py
+```
+
+This tests:
+- ✅ API health and responsiveness
+- ✅ ML event ingestion
+- ✅ Real-time predictions generation
+- ✅ Frontend connectivity
 
 ---
 
@@ -134,15 +172,14 @@ Signals: velocity=+0.12, acceleration=+0.03
 
 ---
 
-## Technology Stack
+## Technology Stack (MVP)
 
-- **Backend**: Python (FastAPI, PyFlink)
-- **Streaming**: Kafka / Redpanda
-- **Processing**: PyFlink for stateful stream processing
-- **Frontend**: TypeScript (Next.js + Tailwind)
-- **Storage**: TimescaleDB for time-series data
-- **Infra**: Docker + Kubernetes
-- **Observability**: Prometheus + Grafana
+- **Backend**: Python (FastAPI, NumPy, Pydantic)
+- **Processing**: In-memory signal engine with sliding windows and EMA smoothing
+- **Frontend**: TypeScript (Next.js + Tailwind CSS + Chart.js)
+- **Storage**: In-memory state (SQLite fallback for persistence)
+- **Containerization**: Docker + Docker Compose
+- **Data Simulation**: Python scripts for controlled drift patterns
 
 ---
 
